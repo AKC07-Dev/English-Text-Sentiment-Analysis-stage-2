@@ -1,6 +1,7 @@
 flask
+flask-cors
 scikit-learn
 pandas
 numpy
-googletrans==4.0.0rc1
 nltk
+sqlite3
