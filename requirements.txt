@@ -3,5 +3,4 @@ flask-cors
 scikit-learn
 pandas
 numpy
-nltk
-sqlite3
+nltk==3.9.2
