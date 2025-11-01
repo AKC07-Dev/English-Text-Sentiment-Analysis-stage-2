@@ -38,6 +38,9 @@ def predict():
     pred = model.predict(review_vec)[0]
     response = {0: "Sorry for that", 1: "Thanks for such sweet review", 2: "Thank you"}
     return jsonify({"result": response.get(pred, "Thank you")})
+    
+import os
 
 if __name__ == '__main__':
-    app.run()
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
