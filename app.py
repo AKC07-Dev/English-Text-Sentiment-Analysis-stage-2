@@ -5,20 +5,31 @@ import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
-nltk.download('stopwords')
 from nltk.corpus import stopwords
 
 app = Flask(__name__)
 CORS(app)
 
+# --- NLTK DATA CHECK ---
+try:
+    stop_words = set(stopwords.words('english'))
+except LookupError:
+    nltk.download('stopwords')
+    stop_words = set(stopwords.words('english'))
+
 # --- MODEL AND VECTOR LOADING ---
-with open('sentiment_model.pkl', 'rb') as f:
-    model = pickle.load(f)
-with open('tfidf_vectorizer.pkl', 'rb') as f:
-    vectorizer = pickle.load(f)
+try:
+    with open('sentiment_model.pkl', 'rb') as f:
+        model = pickle.load(f)
+    with open('tfidf_vectorizer.pkl', 'rb') as f:
+        vectorizer = pickle.load(f)
+except Exception as e:
+    import traceback, sys
+    print("Error loading model/vectorizer:", e, file=sys.stderr)
+    print(traceback.format_exc(), file=sys.stderr)
+    exit(1)
 
 # --- SIMPLE FAST TEXT CLEANING ---
-stop_words = set(stopwords.words('english'))
 def clean_text(text):
     text = str(text)
     text = re.sub(r'http\S+', '', text)
@@ -76,4 +87,31 @@ def save_review():
     ''', (data['name'], data['email'], data['productName'], data['rating'], data['reviewText'], sentiment))
     conn.commit()
     conn.close()
-    return
+    return jsonify({"status": "success", "sentiment": sentiment})
+
+# --- GET ALL REVIEWS ENDPOINT ---
+@app.route('/get-reviews', methods=['GET'])
+def get_reviews():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('SELECT * FROM reviews')
+    rows = c.fetchall()
+    conn.close()
+    reviews = [{
+        "id": r[0], "name": r[1], "email": r[2], "product_name": r[3], "rating": r[4],
+        "review_text": r[5], "sentiment": r[6]
+    } for r in rows]
+    return jsonify(reviews)
+
+# --- ERROR HANDLER FOR DEBUGGING ---
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback, sys
+    print("ERROR:", e, file=sys.stderr)
+    print(traceback.format_exc(), file=sys.stderr)
+    return jsonify({"error": "Internal server error"}), 500
+
+# --- RUN SERVER ON RENDER ---
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
